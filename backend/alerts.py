@@ -6,7 +6,7 @@ from email.mime.multipart import MIMEMultipart
 
 # 1. PHONE NOTIFICATION SETTINGS (Zero-config, completely free)
 # Choose any unique topic name for your phone (e.g., aegis_ztna_alerts_anoop)
-NTFY_TOPIC = os.getenv("NTFY_TOPIC", "aegis_ztna_security_alerts")
+NTFY_TOPIC = os.getenv("NTFY_TOPIC", "aegis_alerts")
 
 # 2. GMAIL SETTINGS (Optional: set in Render Environment variables)
 GMAIL_SENDER = os.getenv("GMAIL_SENDER", "")       # e.g., your_email@gmail.com
