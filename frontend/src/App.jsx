@@ -121,7 +121,7 @@ export default function App() {
   const [passphrase, setPassphrase] = useState("");
   const [showChallengePass, setShowChallengePass] = useState(false);
   const [cadence, setCadence] = useState(0);
-  const [accessHour, setAccessHour] = useState(14);
+  const [accessHour, setAccessHour] = useState(new Date().getHours());
   const [violations, setViolations] = useState(0);
   const [isEvaluating, setIsEvaluating] = useState(false);
   
@@ -169,49 +169,30 @@ export default function App() {
   }, []);
 
   // ===========================================================================
-  // EXACT ORIGINAL KEYSTROKE CADENCE MEASUREMENT
+  // EXACT ORIGINAL KEYSTROKE CADENCE ENGINE
   // ===========================================================================
-  const handlePassphraseChange = (e) => {
-    const val = e.target.value;
-    setPassphrase(val);
-
-    if (!val || val.length === 0) {
-      setCadence(0);
-      intervals.current = [];
-      lastKeyTime.current = null;
-    }
-  };
-
   const handleKeyDown = (e) => {
     const now = performance.now();
 
-    if (e.key === "Backspace") {
-      if (passphrase.length <= 1) {
-        setCadence(0);
-        intervals.current = [];
-        lastKeyTime.current = null;
-      } else if (intervals.current.length > 0) {
-        intervals.current.pop();
-        if (intervals.current.length > 0) {
-          const avg = intervals.current.reduce((a, b) => a + b, 0) / intervals.current.length;
-          setCadence(Math.round(avg));
-        } else {
-          setCadence(0);
-        }
-      }
-      lastKeyTime.current = now;
-      return;
-    }
-
-    if (e.key === "Enter") return;
-
-    if (lastKeyTime.current !== null) {
+    if (lastKeyTime.current !== null && e.key !== "Backspace" && e.key !== "Enter") {
       const delta = now - lastKeyTime.current;
       intervals.current.push(delta);
       const avg = intervals.current.reduce((a, b) => a + b, 0) / intervals.current.length;
       setCadence(Math.round(avg));
     }
     lastKeyTime.current = now;
+  };
+
+  const handlePassphraseChange = (e) => {
+    const val = e.target.value;
+    setPassphrase(val);
+
+    // If empty or cleared via backspace, reset to 0 immediately
+    if (!val || val.length === 0) {
+      setCadence(0);
+      intervals.current = [];
+      lastKeyTime.current = null;
+    }
   };
 
   // Demo Profiles
@@ -759,7 +740,7 @@ export default function App() {
                   />
                 </div>
 
-                {/* LIVE BIOMETRIC CHALLENGE INPUT */}
+                {/* LIVE BIOMETRIC CHALLENGE INPUT (EXACT RESTORED HANDLERS) */}
                 <div>
                   <div className="flex justify-between items-center mb-1.5">
                     <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">
