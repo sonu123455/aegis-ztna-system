@@ -91,18 +91,20 @@ async function decryptFileData(combinedBuffer, passphrase) {
 }
 
 // =============================================================================
-// INSTANT DISPATCH TO YOUR PHONE (ntfy.sh/aegis_alerts)
+// INSTANT DISPATCH TO YOUR PHONE (ntfy.sh)
 // =============================================================================
 const sendMobilePushAlert = async (principal, resource, risk, cadence) => {
   try {
-    await fetch("https://ntfy.sh/aegis_alerts", {
+    await fetch("https://ntfy.sh", {
       method: "POST",
-      headers: {
-        "Title": "🚨 Aegis ZTNA: Access Denied",
-        "Priority": "urgent",
-        "Tags": "warning,lock,shield"
-      },
-      body: `STOLEN CREDENTIAL ALERT!\nTarget: ${resource}\nPrincipal: ${principal}\nCadence: ${cadence}ms (Anomalous)\nRisk Score: ${risk}%\nPolicy: File Locked on Disk`
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        topic: "aegis_alerts",
+        title: "🚨 Aegis ZTNA: Access Denied",
+        message: `STOLEN CREDENTIAL ALERT!\nPrincipal: ${principal}\nTarget: ${resource}\nCadence: ${cadence}ms (Anomalous)\nRisk: ${risk}%\nPolicy: Asset Locked on Disk`,
+        priority: 5,
+        tags: ["warning", "shield", "lock"]
+      })
     });
     console.log("[+] Push notification dispatched to ntfy.sh/aegis_alerts");
   } catch (err) {
