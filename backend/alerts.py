@@ -1,94 +1,30 @@
 import os
-import smtplib
 import requests
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
-# 1. PHONE NOTIFICATION SETTINGS (Zero-config, completely free)
-# Choose any unique topic name for your phone (e.g., aegis_ztna_alerts_anoop)
-NTFY_TOPIC = os.getenv("NTFY_TOPIC", "aegis_alerts")
-
-# 2. GMAIL SETTINGS (Optional: set in Render Environment variables)
-GMAIL_SENDER = os.getenv("GMAIL_SENDER", "")       # e.g., your_email@gmail.com
-GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "") # 16-char Gmail App Password
-ADMIN_RECEIVER = os.getenv("ADMIN_RECEIVER", "")   # e.g., destination_email@gmail.com
-
+# Exact match to your phone topic
+NTFY_TOPIC = "aegis_alerts"
 
 def send_phone_push_notification(user_principal: str, target_resource: str, risk_score: float, cadence_ms: float, tx_hash: str):
-    """
-    Sends an instant push notification directly to your phone via ntfy.sh.
-    Requires no registration, no API keys, and has zero latency.
-    """
+    """Dispatches instant push notification directly to phone via ntfy.sh."""
     try:
-        url = f"https://ntfy.sh/{NTFY_TOPIC}"
-        message = (
-            f"🚨 STOLEN CREDENTIAL ALERT!\n"
-            f"Target: {target_resource}\n"
-            f"Principal: {user_principal}\n"
-            f"Cadence: {cadence_ms} ms (Anomalous)\n"
-            f"Risk Score: {risk_score}%\n"
-            f"Blockchain Tx: {tx_hash[:16]}..."
-        )
-        headers = {
-            "Title": "Aegis ZTNA: Behavioral Anomaly Detected",
-            "Priority": "urgent",
-            "Tags": "warning,lock,shield"
+        payload = {
+            "topic": NTFY_TOPIC,
+            "title": "🚨 Aegis ZTNA: Access Denied",
+            "message": (
+                f"STOLEN CREDENTIAL ALERT!\n"
+                f"Principal: {user_principal}\n"
+                f"Target: {target_resource}\n"
+                f"Cadence: {cadence_ms} ms (Anomalous)\n"
+                f"Risk Score: {risk_score}%\n"
+                f"Policy: Asset Locked on Disk"
+            ),
+            "priority": 5,
+            "tags": ["warning", "shield", "lock"]
         }
-        requests.post(url, data=message.encode("utf-8"), headers=headers, timeout=3.0)
-        print(f"[+] Phone push alert dispatched to ntfy.sh/{NTFY_TOPIC}")
+        res = requests.post("https://ntfy.sh", json=payload, timeout=4.0)
+        print(f"[+] Phone alert dispatched to topic '{NTFY_TOPIC}', status: {res.status_code}")
     except Exception as e:
-        print(f"[!] Failed to dispatch phone push alert: {e}")
-
-
-def send_gmail_security_alert(user_principal: str, target_resource: str, risk_score: float, cadence_ms: float, tx_hash: str):
-    """
-    Sends an official security incident report to Gmail via SMTP.
-    """
-    if not (GMAIL_SENDER and GMAIL_APP_PASSWORD and ADMIN_RECEIVER):
-        # Skipped if Gmail credentials are not configured in environment
-        return
-
-    try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"🚨 [SECURITY ALERT] Unauthorized Access Intercepted: {target_resource}"
-        msg["From"] = f"Aegis ZTNA Gateway <{GMAIL_SENDER}>"
-        msg["To"] = ADMIN_RECEIVER
-
-        html_body = f"""
-        <html>
-          <body style="font-family: Arial, sans-serif; background-color: #0c1017; color: #e6edf3; padding: 20px;">
-            <div style="max-width: 600px; margin: auto; background-color: #161b22; border: 1px solid #da3633; border-radius: 8px; padding: 20px;">
-              <h2 style="color: #f85149; margin-top: 0;">🚨 Zero Trust Behavioral Anomaly Detected</h2>
-              <p style="font-size: 14px; color: #8b949e;">An access request provided the <strong>correct passphrase</strong>, but was denied due to anomalous neuromuscular typing cadence.</p>
-              
-              <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
-                <tr><td style="padding: 8px; color: #8b949e;">Target Asset:</td><td style="padding: 8px; font-weight: bold; color: #ffffff;">{target_resource}</td></tr>
-                <tr><td style="padding: 8px; color: #8b949e;">User Principal:</td><td style="padding: 8px; color: #ffffff;">{user_principal}</td></tr>
-                <tr><td style="padding: 8px; color: #8b949e;">Measured Cadence:</td><td style="padding: 8px; color: #58a6ff;">{cadence_ms} ms</td></tr>
-                <tr><td style="padding: 8px; color: #8b949e;">Calculated Risk:</td><td style="padding: 8px; font-weight: bold; color: #f85149;">{risk_score}%</td></tr>
-                <tr><td style="padding: 8px; color: #8b949e;">Policy Verdict:</td><td style="padding: 8px; font-weight: bold; color: #f85149;">DENIED (File Locked)</td></tr>
-                <tr><td style="padding: 8px; color: #8b949e;">Blockchain Audit Hash:</td><td style="padding: 8px; font-family: monospace; color: #bc8cff;">{tx_hash}</td></tr>
-              </table>
-
-              <p style="font-size: 12px; color: #8b949e; border-top: 1px solid #30363d; padding-top: 10px;">
-                This alert was automatically generated by the Aegis ZTNA Autonomous Controller running on Render.
-              </p>
-            </div>
-          </body>
-        </html>
-        """
-        msg.attach(MIMEText(html_body, "html"))
-
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=5.0) as server:
-            server.login(GMAIL_SENDER, GMAIL_APP_PASSWORD)
-            server.sendmail(GMAIL_SENDER, ADMIN_RECEIVER, msg.as_string())
-
-        print(f"[+] Gmail security alert dispatched to {ADMIN_RECEIVER}")
-    except Exception as e:
-        print(f"[!] Failed to send Gmail alert: {e}")
-
+        print(f"[!] Alert dispatch error: {e}")
 
 def dispatch_security_alerts(user_principal: str, target_resource: str, risk_score: float, cadence_ms: float, tx_hash: str):
-    """Fires all configured notification channels."""
     send_phone_push_notification(user_principal, target_resource, risk_score, cadence_ms, tx_hash)
-    send_gmail_security_alert(user_principal, target_resource, risk_score, cadence_ms, tx_hash)
