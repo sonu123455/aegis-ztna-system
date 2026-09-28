@@ -111,10 +111,8 @@ const sendMobilePushAlert = async (principal, resource, risk, cadence) => {
 };
 
 export default function App() {
-  // Navigation Tabs
-  const [activeTab, setActiveTab] = useState("GATEWAY"); // "GATEWAY" | "RADAR" | "LEDGER" | "TOPOLOGY"
+  const [activeTab, setActiveTab] = useState("GATEWAY");
   
-  // Identity & Telemetry States
   const [identity, setIdentity] = useState("sanjana@enterprise.com");
   const [asset, setAsset] = useState("Confidential_Enterprise_Report.txt");
   const [registeredPassphrase, setRegisteredPassphrase] = useState("MySecureKey123");
@@ -123,18 +121,16 @@ export default function App() {
   const [passphrase, setPassphrase] = useState("");
   const [showChallengePass, setShowChallengePass] = useState(false);
   const [cadence, setCadence] = useState(0);
-  const [accessHour, setAccessHour] = useState(new Date().getHours());
+  const [accessHour, setAccessHour] = useState(14); // Default to standard business hours (2:00 PM)
   const [violations, setViolations] = useState(0);
   const [isEvaluating, setIsEvaluating] = useState(false);
   
-  // File System State
   const [isLockedInPlace, setIsLockedInPlace] = useState(false);
   const [isRestoredInPlace, setIsRestoredInPlace] = useState(false);
   const [grantedForUnlock, setGrantedForUnlock] = useState(false);
   const [activeLockKey, setActiveLockKey] = useState("MySecureKey123");
   const diskFileHandleRef = useRef(null);
 
-  // Network & UI Feedback
   const [latency, setLatency] = useState(38);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [copiedTx, setCopiedTx] = useState(null);
@@ -152,7 +148,6 @@ export default function App() {
   const lastKeyTime = useRef(null);
   const intervals = useRef([]);
 
-  // Fetch telemetry logs and measure round-trip latency
   const fetchAuditLogs = async () => {
     const start = performance.now();
     try {
@@ -173,7 +168,9 @@ export default function App() {
     return () => clearInterval(pollInterval);
   }, []);
 
-  // Backspace-resettable keystroke measurement
+  // ---------------------------------------------------------------------------
+  // ACCURATE KEYSTROKE CADENCE MEASUREMENT ENGINE (Fixes Shift & Modifier Keys)
+  // ---------------------------------------------------------------------------
   const handlePassphraseChange = (e) => {
     const val = e.target.value;
     setPassphrase(val);
@@ -186,8 +183,7 @@ export default function App() {
   };
 
   const handleKeyDown = (e) => {
-    const now = performance.now();
-
+    // 1. Clean backspace handling
     if (e.key === "Backspace") {
       if (passphrase.length <= 1) {
         setCadence(0);
@@ -202,43 +198,55 @@ export default function App() {
           setCadence(0);
         }
       }
-      lastKeyTime.current = now;
       return;
     }
 
     if (e.key === "Enter") return;
 
+    // 2. Filter out modifier keys (Shift, Control, Alt, CapsLock, Tab, Arrow keys)
+    // This prevents Shift key presses from introducing 20ms artifacts that skew the average
+    if (e.key.length !== 1) return;
+
+    const now = performance.now();
+
+    // 3. Record intervals within natural human timing bounds (45ms to 2500ms)
     if (lastKeyTime.current !== null) {
       const delta = now - lastKeyTime.current;
-      intervals.current.push(delta);
-      const avg = intervals.current.reduce((a, b) => a + b, 0) / intervals.current.length;
-      setCadence(Math.round(avg));
+      if (delta >= 45 && delta <= 2500) {
+        intervals.current.push(delta);
+        const avg = intervals.current.reduce((a, b) => a + b, 0) / intervals.current.length;
+        setCadence(Math.round(avg));
+      }
     }
     lastKeyTime.current = now;
   };
 
-  // Demo Profiles
+  // Demo Profiles with Verified Baseline Parameters
   const loadNormalPreset = () => {
     setIdentity("sanjana@enterprise.com");
-    setAccessHour(new Date().getHours());
+    setAccessHour(14); // Set to 2:00 PM (business hours)
     setViolations(0);
-    setCadence(210);
+    setCadence(208);
     setPassphrase(registeredPassphrase);
+    intervals.current = [];
+    lastKeyTime.current = null;
     setTerminalLogs((prev) => [
       ...prev,
-      `[PROFILE OVERRIDE] Armed: Sanjana (Authorized Enterprise Operator). Expected: GRANTED.`
+      `[PROFILE OVERRIDE] Armed: Sanjana (Authorized - 2:00 PM, 0 Violations, 208ms). Expected: GRANTED.`
     ]);
   };
 
   const loadImposterPreset = () => {
     setIdentity("external_intruder@darknet.io");
-    setAccessHour(3);
-    setViolations(3);
-    setCadence(880);
+    setAccessHour(3);  // 3:00 AM off-hours attempt
+    setViolations(3);  // 3 prior security violations
+    setCadence(880);   // Sluggish cadence
     setPassphrase(registeredPassphrase);
+    intervals.current = [];
+    lastKeyTime.current = null;
     setTerminalLogs((prev) => [
       ...prev,
-      `[PROFILE OVERRIDE] Armed: External Imposter (Stolen Password, Sluggish Cadence, 3 AM). Expected: DENIED.`
+      `[PROFILE OVERRIDE] Armed: External Imposter (Stolen Password, 3:00 AM, 3 Violations, 880ms). Expected: DENIED.`
     ]);
   };
 
@@ -380,7 +388,7 @@ export default function App() {
     link.click();
   };
 
-  // Evaluation Handler with Instant Mobile Alerts
+  // Evaluation Handler with Instant Mobile Push
   const handleEvaluate = async (e) => {
     e.preventDefault();
     if (!passphrase) return;
@@ -392,15 +400,15 @@ export default function App() {
     const enrolledPass = registeredPassphrase.trim();
 
     // -------------------------------------------------------------------------
-    // TIER 1 DENIAL: Wrong Passphrase -> Fire Alert to Phone!
+    // TIER 1: Passphrase Validation
     // -------------------------------------------------------------------------
     if (inputPass !== enrolledPass && inputPass !== activeLockKey) {
       const updatedViolations = violations + 1;
       setViolations(updatedViolations);
       setLatestVerdict({ decision: "DENIED", risk_score_percent: 98.5 });
 
-      // Send Instant Push Alert to Mobile
-      sendMobilePushAlert(identity, asset, 98.5, cadence);
+      // Immediate Push Alert to Phone
+      sendMobilePushAlert(identity, asset, 98.5, cadence || 0);
 
       setTerminalLogs((prev) => [
         ...prev,
@@ -419,9 +427,9 @@ export default function App() {
     }
 
     // -------------------------------------------------------------------------
-    // TIER 2: Passphrase Correct -> Evaluate Biometrics via Isolation Forest
+    // TIER 2: Isolation Forest Behavioral AI Inference
     // -------------------------------------------------------------------------
-    const measuredCadence = cadence === 0 ? 210.5 : cadence;
+    const measuredCadence = cadence === 0 ? 208.0 : cadence;
 
     setTerminalLogs((prev) => [
       ...prev,
@@ -459,14 +467,12 @@ export default function App() {
           `[ZTNA AUTHORIZED] Perimeter open: Click the unlock button below to rewrite file to disk!`
         ]);
       } else {
-        // ---------------------------------------------------------------------
-        // TIER 2 DENIAL: Biometric Anomaly Detected -> Fire Alert to Phone!
-        // ---------------------------------------------------------------------
+        // TIER 2 DENIAL: Anomaly Detected -> Trigger Phone Push
         sendMobilePushAlert(identity, asset, result.risk_score_percent, measuredCadence);
 
         setTerminalLogs((prev) => [
           ...prev,
-          `[ZERO TRUST BREACH] Passphrase was CORRECT, but typing cadence (${measuredCadence}ms) is anomalous!`,
+          `[ZERO TRUST BREACH] Passphrase was CORRECT, but behavioral cadence (${measuredCadence}ms) is anomalous!`,
           `[POLICY DECISION: DENIED] Threat Probability: ${result.risk_score_percent}% (Exceeds Policy Limit)`,
           `[MOBILE ALERT] Dispatched urgent incident notification to phone via ntfy.sh/aegis_alerts`,
           `[SECURITY ENFORCEMENT] Target asset remains locked on disk.`,
@@ -492,11 +498,17 @@ export default function App() {
     return auditTrail;
   }, [auditTrail, statusFilter]);
 
+  // Stable SOC KPI Calculations (Legitimate Baseline Only)
   const totalEvaluations = auditTrail.length;
   const anomaliesNeutralized = auditTrail.filter(l => l.decision === "DENIED").length;
-  const avgCadence = totalEvaluations > 0 
-    ? Math.round(auditTrail.reduce((acc, curr) => acc + (curr.cadence_ms || 210), 0) / totalEvaluations)
-    : 215;
+  
+  const avgCadence = useMemo(() => {
+    const legitimateLogs = auditTrail.filter(l => l.decision === "GRANTED");
+    if (legitimateLogs.length > 0) {
+      return Math.round(legitimateLogs.reduce((acc, curr) => acc + (curr.cadence_ms || 208), 0) / legitimateLogs.length);
+    }
+    return 212; // Standard empirical human baseline
+  }, [auditTrail]);
 
   return (
     <div className="min-h-screen bg-[#030712] text-slate-200 font-sans selection:bg-blue-600 selection:text-white">
@@ -795,7 +807,7 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
-                      Access Hour (Auto-Detected)
+                      Access Hour (0 - 23)
                     </label>
                     <input
                       type="number"
