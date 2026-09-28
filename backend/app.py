@@ -6,7 +6,8 @@ from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-
+from threading import Thread
+from alerts import dispatch_security_alerts
 # Local module imports
 from train_model import train_and_export
 from blockchain import blockchain_logger
@@ -89,7 +90,19 @@ def evaluate_access_risk(payload: TelemetryPayload):
                 model = train_and_export(MODEL_PATH)
         else:
             model = train_and_export(MODEL_PATH)
-
+# Trigger real-time Phone/Email alerts on anomalous denial (Stolen password simulation)
+    if decision == "DENIED":
+        Thread(
+            target=dispatch_security_alerts,
+            args=(
+                payload.user_principal,
+                payload.target_resource,
+                risk_percent,
+                payload.keystroke_cadence,
+                chain_receipt["tx_hash"]
+            ),
+            daemon=True
+        ).start()
     # Multi-vector feature vector: [cadence, access_hour, violation_count]
     features = np.array([[
         payload.keystroke_cadence,
