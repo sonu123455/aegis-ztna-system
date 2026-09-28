@@ -121,7 +121,7 @@ export default function App() {
   const [passphrase, setPassphrase] = useState("");
   const [showChallengePass, setShowChallengePass] = useState(false);
   const [cadence, setCadence] = useState(0);
-  const [accessHour, setAccessHour] = useState(14); // Default to standard business hours (2:00 PM)
+  const [accessHour, setAccessHour] = useState(14);
   const [violations, setViolations] = useState(0);
   const [isEvaluating, setIsEvaluating] = useState(false);
   
@@ -168,9 +168,9 @@ export default function App() {
     return () => clearInterval(pollInterval);
   }, []);
 
-  // ---------------------------------------------------------------------------
-  // ACCURATE KEYSTROKE CADENCE MEASUREMENT ENGINE (Fixes Shift & Modifier Keys)
-  // ---------------------------------------------------------------------------
+  // ===========================================================================
+  // EXACT ORIGINAL KEYSTROKE CADENCE MEASUREMENT
+  // ===========================================================================
   const handlePassphraseChange = (e) => {
     const val = e.target.value;
     setPassphrase(val);
@@ -183,7 +183,8 @@ export default function App() {
   };
 
   const handleKeyDown = (e) => {
-    // 1. Clean backspace handling
+    const now = performance.now();
+
     if (e.key === "Backspace") {
       if (passphrase.length <= 1) {
         setCadence(0);
@@ -198,33 +199,25 @@ export default function App() {
           setCadence(0);
         }
       }
+      lastKeyTime.current = now;
       return;
     }
 
     if (e.key === "Enter") return;
 
-    // 2. Filter out modifier keys (Shift, Control, Alt, CapsLock, Tab, Arrow keys)
-    // This prevents Shift key presses from introducing 20ms artifacts that skew the average
-    if (e.key.length !== 1) return;
-
-    const now = performance.now();
-
-    // 3. Record intervals within natural human timing bounds (45ms to 2500ms)
     if (lastKeyTime.current !== null) {
       const delta = now - lastKeyTime.current;
-      if (delta >= 45 && delta <= 2500) {
-        intervals.current.push(delta);
-        const avg = intervals.current.reduce((a, b) => a + b, 0) / intervals.current.length;
-        setCadence(Math.round(avg));
-      }
+      intervals.current.push(delta);
+      const avg = intervals.current.reduce((a, b) => a + b, 0) / intervals.current.length;
+      setCadence(Math.round(avg));
     }
     lastKeyTime.current = now;
   };
 
-  // Demo Profiles with Verified Baseline Parameters
+  // Demo Profiles
   const loadNormalPreset = () => {
     setIdentity("sanjana@enterprise.com");
-    setAccessHour(14); // Set to 2:00 PM (business hours)
+    setAccessHour(14);
     setViolations(0);
     setCadence(208);
     setPassphrase(registeredPassphrase);
@@ -238,9 +231,9 @@ export default function App() {
 
   const loadImposterPreset = () => {
     setIdentity("external_intruder@darknet.io");
-    setAccessHour(3);  // 3:00 AM off-hours attempt
-    setViolations(3);  // 3 prior security violations
-    setCadence(880);   // Sluggish cadence
+    setAccessHour(3);
+    setViolations(3);
+    setCadence(880);
     setPassphrase(registeredPassphrase);
     intervals.current = [];
     lastKeyTime.current = null;
@@ -388,7 +381,7 @@ export default function App() {
     link.click();
   };
 
-  // Evaluation Handler with Instant Mobile Push
+  // Evaluation Handler
   const handleEvaluate = async (e) => {
     e.preventDefault();
     if (!passphrase) return;
@@ -407,7 +400,6 @@ export default function App() {
       setViolations(updatedViolations);
       setLatestVerdict({ decision: "DENIED", risk_score_percent: 98.5 });
 
-      // Immediate Push Alert to Phone
       sendMobilePushAlert(identity, asset, 98.5, cadence || 0);
 
       setTerminalLogs((prev) => [
@@ -467,7 +459,6 @@ export default function App() {
           `[ZTNA AUTHORIZED] Perimeter open: Click the unlock button below to rewrite file to disk!`
         ]);
       } else {
-        // TIER 2 DENIAL: Anomaly Detected -> Trigger Phone Push
         sendMobilePushAlert(identity, asset, result.risk_score_percent, measuredCadence);
 
         setTerminalLogs((prev) => [
@@ -498,7 +489,6 @@ export default function App() {
     return auditTrail;
   }, [auditTrail, statusFilter]);
 
-  // Stable SOC KPI Calculations (Legitimate Baseline Only)
   const totalEvaluations = auditTrail.length;
   const anomaliesNeutralized = auditTrail.filter(l => l.decision === "DENIED").length;
   
@@ -507,12 +497,11 @@ export default function App() {
     if (legitimateLogs.length > 0) {
       return Math.round(legitimateLogs.reduce((acc, curr) => acc + (curr.cadence_ms || 208), 0) / legitimateLogs.length);
     }
-    return 212; // Standard empirical human baseline
+    return 212;
   }, [auditTrail]);
 
   return (
     <div className="min-h-screen bg-[#030712] text-slate-200 font-sans selection:bg-blue-600 selection:text-white">
-      {/* Background Cyber Ambient Radial Glows */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-[-10%] left-[15%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[160px]" />
         <div className="absolute top-[45%] right-[-5%] w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[160px]" />
@@ -571,7 +560,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Navigation Tab Bar */}
           <div className="flex items-center bg-[#0b0f19] border border-slate-800 rounded-xl p-1 text-xs font-medium">
             <button
               onClick={() => setActiveTab("GATEWAY")}
@@ -620,7 +608,7 @@ export default function App() {
           </div>
         </header>
 
-        {/* Executive SOC Metric Cards */}
+        {/* SOC Metric Cards */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-[#0b0f19] border border-slate-800/80 p-4 rounded-2xl shadow-lg flex items-center justify-between">
             <div>
@@ -678,7 +666,6 @@ export default function App() {
                   </h2>
                 </div>
 
-                {/* Scenario Quick Presets */}
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] uppercase text-slate-500 font-mono hidden sm:inline">Scenario:</span>
                   <button
