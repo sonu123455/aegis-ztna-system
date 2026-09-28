@@ -28,7 +28,8 @@ import {
   Binary,
   UserCheck,
   Fingerprint,
-  HardDrive
+  HardDrive,
+  BellRing
 } from 'lucide-react';
 
 const BACKEND_URL = "https://aegis-ztna-system.onrender.com";
@@ -89,6 +90,26 @@ async function decryptFileData(combinedBuffer, passphrase) {
   );
 }
 
+// =============================================================================
+// INSTANT DISPATCH TO YOUR PHONE (ntfy.sh/aegis_alerts)
+// =============================================================================
+const sendMobilePushAlert = async (principal, resource, risk, cadence) => {
+  try {
+    await fetch("https://ntfy.sh/aegis_alerts", {
+      method: "POST",
+      headers: {
+        "Title": "🚨 Aegis ZTNA: Access Denied",
+        "Priority": "urgent",
+        "Tags": "warning,lock,shield"
+      },
+      body: `STOLEN CREDENTIAL ALERT!\nTarget: ${resource}\nPrincipal: ${principal}\nCadence: ${cadence}ms (Anomalous)\nRisk Score: ${risk}%\nPolicy: File Locked on Disk`
+    });
+    console.log("[+] Push notification dispatched to ntfy.sh/aegis_alerts");
+  } catch (err) {
+    console.error("Failed to send phone notification:", err);
+  }
+};
+
 export default function App() {
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState("GATEWAY"); // "GATEWAY" | "RADAR" | "LEDGER" | "TOPOLOGY"
@@ -114,7 +135,7 @@ export default function App() {
   const diskFileHandleRef = useRef(null);
 
   // Network & UI Feedback
-  const [latency, setLatency] = useState(42);
+  const [latency, setLatency] = useState(38);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [copiedTx, setCopiedTx] = useState(null);
 
@@ -122,7 +143,7 @@ export default function App() {
     "[SYSTEM BOOT] Aegis Enterprise ZTNA Core Engine v2.4.0 Online.",
     "[AI CLUSTER] Isolation Forest baseline model verified on Render PDP.",
     "[DISTRIBUTED LEDGER] Polygon Amoy Contract listener active at 0x4a96...01d0.",
-    "[SECURITY POSTURE] Enforcing NIST SP 800-207 continuous per-resource evaluation.",
+    "[SOAR INTEGRATION] Real-time phone push active on topic 'ntfy.sh/aegis_alerts'.",
     "Ready for incoming identity challenges..."
   ]);
   const [auditTrail, setAuditTrail] = useState([]);
@@ -359,7 +380,7 @@ export default function App() {
     link.click();
   };
 
-  // Evaluation Handler
+  // Evaluation Handler with Instant Mobile Alerts
   const handleEvaluate = async (e) => {
     e.preventDefault();
     if (!passphrase) return;
@@ -370,15 +391,22 @@ export default function App() {
     const inputPass = passphrase.trim();
     const enrolledPass = registeredPassphrase.trim();
 
+    // -------------------------------------------------------------------------
+    // TIER 1 DENIAL: Wrong Passphrase -> Fire Alert to Phone!
+    // -------------------------------------------------------------------------
     if (inputPass !== enrolledPass && inputPass !== activeLockKey) {
       const updatedViolations = violations + 1;
       setViolations(updatedViolations);
       setLatestVerdict({ decision: "DENIED", risk_score_percent: 98.5 });
 
+      // Send Instant Push Alert to Mobile
+      sendMobilePushAlert(identity, asset, 98.5, cadence);
+
       setTerminalLogs((prev) => [
         ...prev,
         `[TIER 1 FAILED] Invalid passphrase string provided for principal: ${identity}`,
         `[SECURITY INCIDENT] Violation counter incremented to: ${updatedViolations}`,
+        `[MOBILE ALERT] Dispatched push incident notification to phone via ntfy.sh/aegis_alerts`,
         `[POLICY DECISION: DENIED] Request rejected prior to AI inference. File remains locked.`
       ]);
 
@@ -390,6 +418,9 @@ export default function App() {
       return;
     }
 
+    // -------------------------------------------------------------------------
+    // TIER 2: Passphrase Correct -> Evaluate Biometrics via Isolation Forest
+    // -------------------------------------------------------------------------
     const measuredCadence = cadence === 0 ? 210.5 : cadence;
 
     setTerminalLogs((prev) => [
@@ -428,10 +459,16 @@ export default function App() {
           `[ZTNA AUTHORIZED] Perimeter open: Click the unlock button below to rewrite file to disk!`
         ]);
       } else {
+        // ---------------------------------------------------------------------
+        // TIER 2 DENIAL: Biometric Anomaly Detected -> Fire Alert to Phone!
+        // ---------------------------------------------------------------------
+        sendMobilePushAlert(identity, asset, result.risk_score_percent, measuredCadence);
+
         setTerminalLogs((prev) => [
           ...prev,
           `[ZERO TRUST BREACH] Passphrase was CORRECT, but typing cadence (${measuredCadence}ms) is anomalous!`,
           `[POLICY DECISION: DENIED] Threat Probability: ${result.risk_score_percent}% (Exceeds Policy Limit)`,
+          `[MOBILE ALERT] Dispatched urgent incident notification to phone via ntfy.sh/aegis_alerts`,
           `[SECURITY ENFORCEMENT] Target asset remains locked on disk.`,
           `[WEB3 AUDIT] Tamper-proof incident hash written: ${result.tx_hash}`
         ]);
@@ -489,9 +526,9 @@ export default function App() {
               PDP Cloud Latency: <strong className="text-white">{latency}ms</strong>
             </span>
             <span className="hidden sm:inline text-slate-700">|</span>
-            <span className="flex items-center gap-1.5">
-              <Server className="w-3.5 h-3.5 text-purple-400" />
-              Node: <strong className="text-white">Render-SG-01</strong>
+            <span className="flex items-center gap-1.5 text-amber-400">
+              <BellRing className="w-3.5 h-3.5" />
+              ntfy Alert: <strong>aegis_alerts</strong>
             </span>
             <span className="hidden sm:inline text-slate-700">|</span>
             <span className="flex items-center gap-1.5 text-cyan-400">
@@ -616,7 +653,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* TAB 1: GATEWAY & VAULT (Original Core) */}
+        {/* TAB 1: GATEWAY & VAULT */}
         {activeTab === "GATEWAY" && (
           <main className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fadeIn">
             {/* Left Column: Contextual Security Signals */}
