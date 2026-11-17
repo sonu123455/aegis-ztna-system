@@ -108,7 +108,7 @@ def evaluate_access_risk(payload: TelemetryPayload):
     risk_percent = round(float(np.clip(calculated_risk, 4.0, 98.5)), 2)
 
     # Zero Trust Policy threshold: Deny access if predicted outlier or risk >= 60.0%
-    is_anomaly = True if (prediction == -1 or risk_percent >= 60.0) else False
+    is_anomaly = True if (risk_percent >= 60.0) else False
     decision = "DENIED" if is_anomaly else "GRANTED"
     session_token = f"AEGIS-SESSION-{int(time.time())}-PASS" if not is_anomaly else None
 
